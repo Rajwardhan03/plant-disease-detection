@@ -1,44 +1,74 @@
 import streamlit as st
+import tensorflow as tf
+import numpy as np
 from PIL import Image
 
-# --- Page Config ---
-st.set_page_config(
-    page_title="Plant Disease Detector",
-    page_icon="🌿",
-    layout="centered"
-)
+# 1. Define the class names
+CLASS_NAMES = [
+    'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy',
+    'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew', 'Cherry_(including_sour)___healthy',
+    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot', 'Corn_(maize)___Common_rust_',
+    'Corn_(maize)___Northern_Leaf_Blight', 'Corn_(maize)___healthy', 'Grape___Black_rot',
+    'Grape___Esca_(Black_Measles)', 'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)', 'Grape___healthy',
+    'Orange___Haunglongbing_(Citrus_greening)', 'Peach___Bacterial_spot', 'Peach___healthy',
+    'Pepper,_bell___Bacterial_spot', 'Pepper,_bell___healthy', 'Potato___Early_blight',
+    'Potato___Late_blight', 'Potato___healthy', 'Raspberry___healthy', 'Soybean___healthy',
+    'Squash___Powdery_mildew', 'Strawberry___Leaf_scorch', 'Strawberry___healthy',
+    'Tomato___Bacterial_spot', 'Tomato___Early_blight', 'Tomato___Late_blight',
+    'Tomato___Leaf_Mold', 'Tomato___Septoria_leaf_spot', 'Tomato___Spider_mites Two-spotted_spider_mite',
+    'Tomato___Target_Spot', 'Tomato___Tomato_Yellow_Leaf_Curl_Virus', 'Tomato___Tomato_mosaic_virus',
+    'Tomato___healthy'
+]
 
-# --- Main UI ---
-st.title("🌿 AI Plant Disease Detection")
-st.write(
-    """
-    Upload an image of a plant leaf, and the AI will analyze it. 
-    (Model training on Kaggle in progress!)
-    """
-)
+# 2. Function to load the model (cached for performance)
+@st.cache_resource
+def load_my_model():
+    # --- THIS IS THE KEY CHANGE ---
+    # Load the model from the local file
+    model_path = 'plant_disease_model.h5' 
+    model = tf.keras.models.load_model(model_path)
+    return model
 
-# --- File Uploader ---
+model = load_my_model()
+
+# 3. Function to preprocess the image
+def preprocess_image(image):
+    img = image.resize((224, 224))  # Resize
+    img_array = tf.keras.preprocessing.image.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0) # Create a batch
+    img_array = img_array / 255.0  # Rescale
+    return img_array
+
+# 4. Set up the Streamlit UI
+st.set_page_config(page_title="Plant Disease Detector", layout="centered")
+st.title("🌱 AI Plant Disease Detection")
+st.write("Upload an image of a plant leaf, and the AI will predict its health.")
+
+# File uploader
 uploaded_file = st.file_uploader("Choose a leaf image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     # Display the uploaded image
     image = Image.open(uploaded_file)
-    
-    st.image(image, caption='Uploaded Leaf Image', use_column_width=True)
-    st.write("") # Spacer
-    
-    # --- Analyze Button (Non-functional) ---
-    if st.button("🔍 Analyze Leaf"):
-        with st.spinner("Analyzing... (Model integration pending)"):
-            # This is where your model.predict() will go later
-            import time
-            time.sleep(2) # Simulate analysis time
-            
-        st.info("ℹ️ **Model Not Yet Connected!** This UI is ready. The next step is to train the model on Kaggle and link it.")
+    st.image(image, caption='Uploaded Image', use_column_width=True)
 
-# --- Sidebar ---
+    # Preprocess and predict
+    with st.spinner('Analyzing the image...'):
+        processed_image = preprocess_image(image)
+        prediction = model.predict(processed_image)
+
+        # Get the highest probability class
+        predicted_class_index = np.argmax(prediction)
+        predicted_class_name = CLASS_NAMES[predicted_class_index]
+        confidence = np.max(prediction) * 100
+
+    # Display the result
+    st.success(f"**Prediction:** {predicted_class_name.replace('___', ' ')}")
+    st.info(f"**Confidence:** {confidence:.2f}%")
+
+# Sidebar info
 st.sidebar.header("About")
 st.sidebar.info(
-    "This app uses a Convolutional Neural Network (CNN) to detect plant diseases. "
-    "The model is being trained on Kaggle using the PlantVillage dataset."
+    "This app uses a Convolutional Neural Network (CNN), trained on the "
+    "PlantVillage dataset, to detect plant diseases."
 )
