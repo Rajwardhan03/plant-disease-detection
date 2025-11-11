@@ -6,7 +6,7 @@ This project uses a Deep Learning (CNN) model trained on the **Kaggle PlantVilla
 
 
 *  Streamlit UI built.
-*  Model training on Kaggle (In Progress).
+*  Model training on Kaggle.
 *  Integration of the final model into the app.
 
 ## How to Run
